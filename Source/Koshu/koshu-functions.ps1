@@ -122,20 +122,40 @@ function build_solution($solutionName, $configuration='release') {
 	}
 }
 
-function pack_solution($solutionName, $destination, $packageName, $configuration='release') {
-	Assert (test-path $solutionName) "$solutionName could not be found"
-	
+function pack_project($projectName, $destination, $configuration='release') {
+	Assert (test-path $projectName) "$projectName could not be found"
+
 	create_directory $destination
-	
-	$type = [IO.Path]::GetExtension((Resolve-Path $solutionName))
-	
+
+	$packageName	= [IO.Path]::GetFileNameWithoutExtension((Resolve-Path $projectName))
 	$packageRoot	= (Resolve-Path $destination)
 	$packageDir		= "$packageRoot\$packageName"
-	
-	if ($type -eq ".csproj" -or $type -eq ".vbproj") {
-		$subDir = [IO.Path]::GetFileNameWithoutExtension((Resolve-Path $solutionName))
-		$packageDir	= "$packageDir\$subDir"
+
+	create_directory $packageDir
+
+	$buildVerbosity = 'quiet'
+	if ($koshu.verbose -eq $true) {
+		$buildVerbosity = 'minimal'
 	}
+
+	exec {
+		msbuild $projectName `
+			/target:Publish `
+			/property:Configuration=$configuration `
+			/property:_PackageTempDir=$packageDir `
+			/property:AutoParameterizationWebConfigConnectionStrings=False `
+			/verbosity:$buildVerbosity
+	}
+}
+
+function pack_solution($solutionName, $destination, $configuration='release') {
+	Assert (test-path $solutionName) "$solutionName could not be found"
+
+	create_directory $destination
+
+	$packageName	= [IO.Path]::GetFileNameWithoutExtension((Resolve-Path $solutionName))
+	$packageRoot	= (Resolve-Path $destination)
+	$packageDir		= "$packageRoot\$packageName"
 
 	create_directory $packageDir
 
